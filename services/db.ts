@@ -1,4 +1,4 @@
-import { AppState, Recipe, UserSettings, InventoryItem, ShoppingItem, DEFAULT_GLASSWARE } from '../types';
+import { AppState, Recipe, UserSettings, InventoryItem, ShoppingItem, BarItem, DEFAULT_GLASSWARE } from '../types';
 
 const DB_KEY = 'mixmaster_db_v1';
 
@@ -11,6 +11,19 @@ const DEFAULT_FRUIT_YIELDS: Record<string, number> = {
     'Watermelon': 1000
 };
 
+const DEFAULT_BAR_INVENTORY: BarItem[] = [
+    { name: 'London Dry Gin', volumePrUnitMl: 700, categories: ['Spirit', 'Gin', 'Clear'], inStock: true },
+    { name: 'Light Rum', volumePrUnitMl: 700, categories: ['Spirit', 'Rum'], inStock: true },
+    { name: 'Dark Rum', volumePrUnitMl: 700, categories: ['Spirit', 'Rum', 'Aged'], inStock: true },
+    { name: 'Lime', volumePrUnitMl: 1, categories: ['Fruit', 'Citrus', 'Juice'], inStock: true },
+    { name: 'Lemon', volumePrUnitMl: 1, categories: ['Fruit', 'Citrus', 'Juice'], inStock: true },
+    { name: 'Simple Syrup', volumePrUnitMl: 500, categories: ['Syrup', 'Sweetener'], inStock: true },
+    { name: 'Angostura Bitters', volumePrUnitMl: 200, categories: ['Bitters'], inStock: true },
+    { name: 'Orange Juice', volumePrUnitMl: 1000, categories: ['Juice', 'Mixer', 'Fruit'], inStock: false },
+    { name: 'Campari', volumePrUnitMl: 700, categories: ['Liqueur', 'Amaro'], inStock: false },
+    { name: 'Sweet Vermouth', volumePrUnitMl: 750, categories: ['Wine', 'Fortified'], inStock: false },
+];
+
 const DEFAULT_STATE: AppState = {
   recipes: [],
   settings: {
@@ -21,6 +34,9 @@ const DEFAULT_STATE: AppState = {
     fruitYields: DEFAULT_FRUIT_YIELDS
   },
   inventory: DEFAULT_GLASSWARE,
+  barInventory: DEFAULT_BAR_INVENTORY,
+  tempBarInventory: [],
+  isTempInventoryActive: false,
   partyList: [],
   customShoppingList: []
 };
@@ -101,7 +117,8 @@ export const getDB = (): AppState => {
     return initialState;
   }
   const parsed = JSON.parse(data);
-  // Migration for old state
+  
+  // Migrations for existing users
   if (!parsed.settings.fruitYields) {
       parsed.settings.fruitYields = DEFAULT_FRUIT_YIELDS;
       parsed.settings.theme = 'default';
@@ -109,6 +126,14 @@ export const getDB = (): AppState => {
   if (!parsed.customShoppingList) {
       parsed.customShoppingList = [];
   }
+  
+  // Migration: Bar Inventory
+  if (!parsed.barInventory) {
+      parsed.barInventory = DEFAULT_BAR_INVENTORY;
+      parsed.tempBarInventory = [];
+      parsed.isTempInventoryActive = false;
+  }
+  
   return parsed;
 };
 
@@ -139,6 +164,24 @@ export const updateSettings = (settings: UserSettings) => {
 export const updateInventory = (inventory: InventoryItem[]) => {
     const state = getDB();
     state.inventory = inventory;
+    saveDB(state);
+}
+
+// New: Update Bar Inventory (Main or Temp)
+export const updateBarInventory = (items: BarItem[], isTemp: boolean) => {
+    const state = getDB();
+    if (isTemp) {
+        state.tempBarInventory = items;
+    } else {
+        state.barInventory = items;
+    }
+    saveDB(state);
+}
+
+// New: Toggle Temp Inventory
+export const setTempInventoryActive = (isActive: boolean) => {
+    const state = getDB();
+    state.isTempInventoryActive = isActive;
     saveDB(state);
 }
 

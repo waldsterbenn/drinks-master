@@ -15,9 +15,9 @@ export interface Recipe {
   credits?: string;
   glassware: string;
   rating?: number;
-  isFavorite?: boolean; // New
-  tried?: boolean;      // New
-  userNotes?: string;   // New
+  isFavorite?: boolean; 
+  tried?: boolean;      
+  userNotes?: string;   
   addedAt: number;
 }
 
@@ -35,6 +35,14 @@ export interface InventoryItem {
   volumeMl: number;
 }
 
+// New Bar Inventory Item
+export interface BarItem {
+  name: string; // Unique Identifier
+  volumePrUnitMl: number;
+  categories: string[];
+  inStock: boolean;
+}
+
 export interface ShoppingItem {
   id: string;
   name: string;
@@ -46,9 +54,12 @@ export interface ShoppingItem {
 export interface AppState {
   recipes: Recipe[];
   settings: UserSettings;
-  inventory: InventoryItem[];
+  inventory: InventoryItem[]; // Glassware
+  barInventory: BarItem[];    // New: Permanent Bar Inventory
+  tempBarInventory: BarItem[]; // New: Temporary/Visiting Inventory
+  isTempInventoryActive: boolean; // New: Toggle state
   partyList: { recipeId: string; count: number }[];
-  customShoppingList: ShoppingItem[]; // New
+  customShoppingList: ShoppingItem[];
 }
 
 export type GlassType = 'Coupe' | 'Old Fashioned' | 'Highball' | 'Tiki Mug' | 'Collins' | 'Martini' | 'Snifter' | 'Hurricane';

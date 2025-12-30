@@ -18,6 +18,9 @@ const NavBar: React.FC = () => {
             <Link to="/" className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/')}`}>
               Recipes
             </Link>
+            <Link to="/inventory" className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/inventory')}`}>
+              My Bar
+            </Link>
             <Link to="/party" className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/party')}`}>
               Party
             </Link>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getDB, clearParty, addToParty, updateShoppingList } from '../services/db';
 import { AppState, ShoppingItem } from '../types';
-import { v4 as uuidv4 } from 'uuid'; // Actually using browser crypto in utility if uuid package fails, but prompt importmap has uuid
 
 interface AggregatedItem {
     name: string;

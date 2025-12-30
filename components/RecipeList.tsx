@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Recipe } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Recipe, BarItem } from '../types';
 import { Link } from 'react-router-dom';
+import { getDB } from '../services/db';
 
 interface RecipeListProps {
   recipes: Recipe[];
@@ -12,6 +13,24 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
   const [showFavorites, setShowFavorites] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [triedFilter, setTriedFilter] = useState<'all' | 'tried' | 'untried'>('all');
+  
+  // Inventory Filtering
+  const [filterByInventory, setFilterByInventory] = useState(false);
+  const [activeInventory, setActiveInventory] = useState<BarItem[]>([]);
+  const [isTempActive, setIsTempActive] = useState(false);
+
+  // Load Inventory state
+  useEffect(() => {
+    const updateInv = () => {
+        const db = getDB();
+        setIsTempActive(db.isTempInventoryActive);
+        const inv = db.isTempInventoryActive ? db.tempBarInventory : db.barInventory;
+        setActiveInventory(inv.filter(i => i.inStock));
+    };
+    updateInv();
+    window.addEventListener('db-change', updateInv);
+    return () => window.removeEventListener('db-change', updateInv);
+  }, []);
 
   const filteredRecipes = useMemo(() => {
     let result = recipes;
@@ -30,6 +49,31 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
         result = result.filter(r => !r.tried);
     }
 
+    if (filterByInventory && activeInventory.length > 0) {
+        result = result.filter(recipe => {
+            // Check if every ingredient in the recipe can be fulfilled by the inventory
+            return recipe.ingredients.every(ing => {
+                const ingName = ing.name.toLowerCase();
+                // Check if any item in stock matches this ingredient
+                // Logic: 
+                // 1. Inventory name contains ingredient name (Inv: "Lime Juice", Ing: "Lime")
+                // 2. Ingredient name contains inventory name (Inv: "Gin", Ing: "London Dry Gin")
+                // 3. Inventory Categories contains ingredient name (Inv has "Rum", Ing: "Dark Rum") -- fuzzy but helpful
+                // 4. Ingredient name contains a Category (Inv has Category "Gin", Ing: "London Dry Gin")
+                
+                return activeInventory.some(stockItem => {
+                    const stockName = stockItem.name.toLowerCase();
+                    const stockCats = stockItem.categories.map(c => c.toLowerCase());
+                    
+                    const nameMatch = stockName.includes(ingName) || ingName.includes(stockName);
+                    const catMatch = stockCats.some(cat => ingName.includes(cat) || cat === ingName);
+                    
+                    return nameMatch || catMatch;
+                });
+            });
+        });
+    }
+
     const lowerSearch = search.toLowerCase();
     if (lowerSearch) {
         result = result.filter(r => {
@@ -40,7 +84,7 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
         });
     }
     return result;
-  }, [recipes, search, showFavorites, minRating, triedFilter]);
+  }, [recipes, search, showFavorites, minRating, triedFilter, filterByInventory, activeInventory]);
 
   const cycleTriedFilter = () => {
       if (triedFilter === 'all') setTriedFilter('tried');
@@ -67,6 +111,20 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
         </div>
         
         <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+            {/* Inventory Filter Widget */}
+            <button
+                onClick={() => setFilterByInventory(!filterByInventory)}
+                className={`h-16 px-4 flex items-center justify-center rounded-xl border transition-colors flex-grow sm:flex-grow-0 relative ${filterByInventory ? 'bg-bar-accent text-white border-bar-accent' : 'bg-bar-800 text-gray-400 border-bar-700 hover:text-white'}`}
+                title={filterByInventory ? `Filtering by ${isTempActive ? 'Temporary' : 'My'} Bar` : "Filter by Available Ingredients"}
+            >
+                <div className="flex flex-col items-center">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    {filterByInventory && isTempActive && <span className="absolute -top-2 -right-2 bg-yellow-500 text-bar-900 text-[10px] font-bold px-1.5 rounded-full border border-bar-900">TMP</span>}
+                </div>
+            </button>
+
             {/* Rating Filter Widget */}
             <div className="bg-bar-800 rounded-xl border border-bar-700 h-16 flex items-center justify-center px-4 flex-grow sm:flex-grow-0">
                 <div className="flex space-x-1">
@@ -211,6 +269,9 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
             <div className="col-span-full text-center py-20 text-gray-500">
                 <p className="text-xl">No cocktails found matching your criteria.</p>
                 <p className="mt-2">Try adjusting your search, rating filter, or favorites.</p>
+                {filterByInventory && (
+                     <p className="mt-2 text-bar-accent">Tip: Add more ingredients to your {isTempActive ? 'Temporary' : 'My'} Bar inventory.</p>
+                )}
             </div>
         )}
       </div>

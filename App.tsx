@@ -6,6 +6,7 @@ import RecipeView from './components/RecipeView';
 import ImportView from './components/ImportView';
 import PartyPlanner from './components/PartyPlanner';
 import Settings from './components/Settings';
+import InventoryManager from './components/InventoryManager';
 import { getDB } from './services/db';
 import { AppState } from './types';
 
@@ -58,6 +59,7 @@ const App: React.FC = () => {
           <Route path="/import" element={<ImportView />} />
           <Route path="/party" element={<PartyPlanner />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/inventory" element={<InventoryManager />} />
         </Routes>
         <NavBar />
       </div>
