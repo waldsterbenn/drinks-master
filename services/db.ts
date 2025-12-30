@@ -47,6 +47,47 @@ const SEED_RECIPES: Recipe[] = [
         glassware: "Old Fashioned",
         addedAt: Date.now(),
         rating: 5,
+        isFavorite: true,
+        userNotes: ""
+    },
+    {
+        id: 'seed-2',
+        title: "Sidewinder's Fang",
+        ingredients: [
+            { amount: 30, unit: 'ml', name: 'Lime juice', originalText: '30 ml Lime juice' },
+            { amount: 30, unit: 'ml', name: 'Orange juice', originalText: '30 ml Orange juice' },
+            { amount: 30, unit: 'ml', name: 'Passion fruit syrup', originalText: '30 ml Passion fruit syrup' },
+            { amount: 90, unit: 'ml', name: 'Seltzer', originalText: '90 ml Seltzer' },
+            { amount: 30, unit: 'ml', name: 'Dark Jamaican rum', originalText: '30 ml Dark Jamaican rum' },
+            { amount: 30, unit: 'ml', name: 'Demerara rum', originalText: '30 ml Demerara rum' }
+        ],
+        instructions: "Add all ingredients (except seltzer) to a drink mixer tin. Flash blend with crushed ice. Pour into a large snifter. Top with seltzer and more ice.",
+        garnish: "Orange peel snake",
+        tags: ["cocktail-tiki", "rum", "fruity", "classic"],
+        credits: "The Lanai Restaurant, 1960s",
+        glassware: "Snifter",
+        addedAt: Date.now(),
+        rating: 4,
+        isFavorite: false,
+        userNotes: ""
+    },
+    {
+        id: 'seed-3',
+        title: "Saturn",
+        ingredients: [
+            { amount: 37.5, unit: 'ml', name: 'Gin', originalText: '37.5 ml Gin' },
+            { amount: 22.5, unit: 'ml', name: 'Lemon juice', originalText: '22.5 ml Lemon juice' },
+            { amount: 15, unit: 'ml', name: 'Passion fruit syrup', originalText: '15 ml Passion fruit syrup' },
+            { amount: 7.5, unit: 'ml', name: 'Orgeat', originalText: '7.5 ml Orgeat' },
+            { amount: 7.5, unit: 'ml', name: 'Falernum', originalText: '7.5 ml Falernum' }
+        ],
+        instructions: "Flash blend with crushed ice. Pour unstrained into a coupe or tiki mug.",
+        garnish: "Lemon peel ring with cherry (Saturn)",
+        tags: ["cocktail-tiki", "gin", "classic", "blended"],
+        credits: "J. 'Popo' Galsini, 1967",
+        glassware: "Coupe",
+        addedAt: Date.now(),
+        rating: 3,
         isFavorite: false,
         userNotes: ""
     }

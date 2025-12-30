@@ -110,6 +110,42 @@ const PartyPlanner: React.FC = () => {
       updateShoppingList(newList);
   };
 
+  const updateItemAmount = (id: string, delta: number) => {
+      const newList = state.customShoppingList.map(i => {
+          if (i.id === id) {
+              let step = 1;
+              const u = i.unit.toLowerCase();
+              const isVolume = ['ml', 'cl', 'oz', 'l'].includes(u);
+
+              if (isVolume) {
+                   const yields = state.settings.fruitYields || {};
+                   const lowerName = i.name.toLowerCase();
+                   const fruitMatch = Object.keys(yields).find(key => lowerName.includes(key.toLowerCase()));
+                   
+                   if (fruitMatch) {
+                       const yieldMl = yields[fruitMatch];
+                       if (u === 'ml') step = yieldMl;
+                       else if (u === 'cl') step = yieldMl / 10;
+                       else if (u === 'oz') step = yieldMl / 29.5735;
+                       else if (u === 'l') step = yieldMl / 1000;
+                   } else {
+                       if (u === 'ml') step = 10;
+                       else if (u === 'cl') step = 1;
+                       else if (u === 'oz') step = 0.5;
+                       else if (u === 'l') step = 0.05;
+                   }
+              } else {
+                  step = 1;
+              }
+              
+              const newAmount = Math.max(0, i.amount + (delta * step));
+              return { ...i, amount: parseFloat(newAmount.toFixed(2)), checked: false };
+          }
+          return i;
+      });
+      updateShoppingList(newList);
+  };
+
   const removeShoppingItem = (id: string) => {
       const newList = state.customShoppingList.filter(i => i.id !== id);
       updateShoppingList(newList);
@@ -218,26 +254,49 @@ const PartyPlanner: React.FC = () => {
                     {state.customShoppingList.map(item => {
                         const fruitStr = getFruitCount(item.name, item.amount);
                         return (
-                            <li key={item.id} className="flex items-center bg-bar-900 p-3 rounded-lg group">
-                                <button 
-                                    onClick={() => toggleShoppingItem(item.id)}
-                                    className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${item.checked ? 'bg-bar-accent border-bar-accent' : 'border-gray-500'}`}
-                                >
-                                    {item.checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                </button>
-                                <div className={`flex-1 ${item.checked ? 'opacity-50 line-through' : ''}`}>
-                                    <span className="text-white block font-medium capitalize">
-                                        {item.name}
-                                        {fruitStr && <span className="text-bar-accent text-xs ml-2 font-bold">{fruitStr}</span>}
-                                    </span>
-                                    <span className="text-xs text-bar-gold">{item.amount > 0 ? item.amount.toLocaleString(undefined, {maximumFractionDigits: 1}) : ''} {item.unit}</span>
+                            <li key={item.id} className="flex flex-col sm:flex-row sm:items-center bg-bar-900 p-3 rounded-lg group gap-3">
+                                <div className="flex items-center flex-1">
+                                    <button 
+                                        onClick={() => toggleShoppingItem(item.id)}
+                                        className={`flex-shrink-0 w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${item.checked ? 'bg-bar-accent border-bar-accent' : 'border-gray-500'}`}
+                                    >
+                                        {item.checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                    </button>
+                                    <div className={`flex-1 ${item.checked ? 'opacity-50 line-through' : ''}`}>
+                                        <span className="text-white block font-medium capitalize leading-tight">
+                                            {item.name}
+                                            {fruitStr && <span className="text-bar-accent text-xs ml-2 font-bold whitespace-nowrap">{fruitStr}</span>}
+                                        </span>
+                                    </div>
                                 </div>
-                                <button 
-                                    onClick={() => removeShoppingItem(item.id)}
-                                    className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
+                                
+                                <div className="flex items-center justify-between sm:justify-end gap-3 pl-8 sm:pl-0">
+                                     <div className="flex items-center bg-bar-800 rounded-lg p-1 border border-bar-700">
+                                        <button 
+                                            onClick={() => updateItemAmount(item.id, -1)}
+                                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white rounded hover:bg-bar-700"
+                                        >
+                                            -
+                                        </button>
+                                        <span className="text-xs text-bar-gold font-mono w-20 text-center px-1">
+                                            {item.amount > 0 ? item.amount.toLocaleString(undefined, {maximumFractionDigits: 1}) : '0'} {item.unit}
+                                        </span>
+                                        <button 
+                                            onClick={() => updateItemAmount(item.id, 1)}
+                                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white rounded hover:bg-bar-700"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => removeShoppingItem(item.id)}
+                                        className="text-gray-600 hover:text-red-500 transition-colors p-1"
+                                        title="Remove item"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
                             </li>
                         );
                     })}
