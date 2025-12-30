@@ -149,12 +149,14 @@ const PartyPlanner: React.FC = () => {
                          return (
                             <li key={idx} className="py-3 flex justify-between items-center">
                                 <span className={`text-gray-200 capitalize ${isGrocery(item.name) ? 'font-semibold text-white' : ''}`}>
-                                    {fruitStr && <span className="text-bar-accent mr-2">{fruitStr}</span>}
                                     {item.name}
                                 </span>
-                                <span className="text-bar-gold font-bold font-mono whitespace-nowrap ml-2">
-                                    {item.totalAmount > 0 ? item.totalAmount.toLocaleString(undefined, {maximumFractionDigits: 1}) : ''} {item.unit}
-                                </span>
+                                <div className="flex items-center justify-end text-right">
+                                    {fruitStr && <span className="text-bar-accent mr-3 text-sm font-medium">{fruitStr}</span>}
+                                    <span className="text-bar-gold font-bold font-mono whitespace-nowrap">
+                                        {item.totalAmount > 0 ? item.totalAmount.toLocaleString(undefined, {maximumFractionDigits: 1}) : ''} {item.unit}
+                                    </span>
+                                </div>
                             </li>
                          );
                      })}
