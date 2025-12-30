@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getDB, clearParty, addToParty } from '../services/db';
-import { AppState } from '../types';
+import { getDB, clearParty, addToParty, updateShoppingList } from '../services/db';
+import { AppState, ShoppingItem } from '../types';
+import { v4 as uuidv4 } from 'uuid'; // Actually using browser crypto in utility if uuid package fails, but prompt importmap has uuid
 
 interface AggregatedItem {
     name: string;
@@ -29,37 +30,31 @@ const PartyPlanner: React.FC = () => {
 
   if (!state) return null;
 
+  // --- Logic for Ingredients (Calculated) ---
+
   const partyRecipes = state.partyList.map(item => {
       const recipe = state.recipes.find(r => r.id === item.recipeId);
       return { ...item, recipe };
-  }).filter(i => i.recipe); // filter out deleted ones
+  }).filter(i => i.recipe); 
 
-  const shoppingList: Record<string, AggregatedItem> = {};
+  const calculatedIngredients: Record<string, AggregatedItem> = {};
 
   partyRecipes.forEach(item => {
       if(!item.recipe) return;
       const count = item.count;
       item.recipe.ingredients.forEach(ing => {
           const key = ing.name.toLowerCase();
-          if (!shoppingList[key]) {
-              shoppingList[key] = {
+          if (!calculatedIngredients[key]) {
+              calculatedIngredients[key] = {
                   name: ing.name,
                   totalAmount: 0,
                   unit: ing.unit,
                   originalName: ing.name
               };
           }
-          shoppingList[key].totalAmount += (ing.amount * count);
+          calculatedIngredients[key].totalAmount += (ing.amount * count);
       });
   });
-
-  const handleClear = () => {
-      clearParty();
-  };
-
-  const updateCount = (recipeId: string, count: number) => {
-      addToParty(recipeId, Math.max(0, count));
-  };
 
   const isGrocery = (name: string) => {
       const lower = name.toLowerCase();
@@ -69,10 +64,7 @@ const PartyPlanner: React.FC = () => {
   const getFruitCount = (name: string, totalMl: number): string | null => {
       const yields = state.settings.fruitYields || {};
       const lowerName = name.toLowerCase();
-      
-      // Find matching fruit key
       const match = Object.keys(yields).find(key => lowerName.includes(key.toLowerCase()));
-      
       if (match) {
           const yieldPerFruit = yields[match];
           if (yieldPerFruit > 0) {
@@ -83,8 +75,7 @@ const PartyPlanner: React.FC = () => {
       return null;
   };
 
-  // Sort: Groceries first, then others (mostly spirits)
-  const sortedItems = Object.values(shoppingList).sort((a, b) => {
+  const sortedIngredients = Object.values(calculatedIngredients).sort((a, b) => {
       const aIsGrocery = isGrocery(a.name);
       const bIsGrocery = isGrocery(b.name);
       if (aIsGrocery && !bIsGrocery) return -1;
@@ -92,25 +83,61 @@ const PartyPlanner: React.FC = () => {
       return a.name.localeCompare(b.name);
   });
 
+  // --- Logic for Shopping List (Custom) ---
+
+  const addToShoppingList = (ing: AggregatedItem) => {
+      const newList = [...state.customShoppingList];
+      // Check if similar item exists to merge
+      const existingIdx = newList.findIndex(i => i.name.toLowerCase() === ing.name.toLowerCase() && i.unit === ing.unit);
+      
+      if (existingIdx >= 0) {
+          newList[existingIdx].amount += ing.totalAmount;
+          newList[existingIdx].checked = false; // Uncheck on update
+      } else {
+          newList.push({
+              id: Math.random().toString(36).substr(2, 9),
+              name: ing.name,
+              amount: ing.totalAmount,
+              unit: ing.unit,
+              checked: false
+          });
+      }
+      updateShoppingList(newList);
+  };
+
+  const toggleShoppingItem = (id: string) => {
+      const newList = state.customShoppingList.map(i => i.id === id ? { ...i, checked: !i.checked } : i);
+      updateShoppingList(newList);
+  };
+
+  const removeShoppingItem = (id: string) => {
+      const newList = state.customShoppingList.filter(i => i.id !== id);
+      updateShoppingList(newList);
+  };
+
+  const updateCount = (recipeId: string, count: number) => {
+      addToParty(recipeId, Math.max(0, count));
+  };
+
   return (
-    <div className="pb-24 pt-6 md:pt-24 px-4 max-w-4xl mx-auto">
+    <div className="pb-24 pt-6 md:pt-24 px-4 max-w-7xl mx-auto">
       <div className="flex justify-between items-end mb-8">
         <div>
             <h1 className="text-3xl font-bold text-white mb-2">Party Planner</h1>
             <p className="text-gray-400">Planning {partyRecipes.reduce((acc, c) => acc + c.count, 0)} cocktails</p>
         </div>
         {partyRecipes.length > 0 && (
-            <button onClick={handleClear} className="text-sm text-red-400 hover:text-red-300 underline">Clear All</button>
+            <button onClick={() => clearParty()} className="text-sm text-red-400 hover:text-red-300 underline">Clear Menu</button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Selected Cocktails */}
-        <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 order-2 md:order-1">
-            <h2 className="text-xl font-bold text-white mb-4">Menu</h2>
+        {/* Panel 1: Menu */}
+        <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 flex flex-col h-fit">
+            <h2 className="text-xl font-bold text-white mb-4 border-b border-bar-700 pb-2">Menu</h2>
             {partyRecipes.length === 0 ? (
-                <p className="text-gray-500 italic">No cocktails selected. Go to a recipe to add it here.</p>
+                <p className="text-gray-500 italic">No cocktails selected.</p>
             ) : (
                 <ul className="space-y-4">
                     {partyRecipes.map(item => (
@@ -137,20 +164,31 @@ const PartyPlanner: React.FC = () => {
             )}
         </div>
 
-        {/* Shopping List */}
-        <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 order-1 md:order-2">
-             <h2 className="text-xl font-bold text-white mb-4">Shopping List</h2>
-             {sortedItems.length === 0 ? (
+        {/* Panel 2: Ingredients (Calculated) */}
+        <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 flex flex-col h-fit">
+             <div className="mb-4 border-b border-bar-700 pb-2">
+                 <h2 className="text-xl font-bold text-white">Ingredients</h2>
+                 <p className="text-xs text-gray-400 mt-1">Click an item to add to your shopping list</p>
+             </div>
+             
+             {sortedIngredients.length === 0 ? (
                  <p className="text-gray-500 italic">Add cocktails to see ingredients needed.</p>
              ) : (
                  <ul className="divide-y divide-bar-700">
-                     {sortedItems.map((item, idx) => {
+                     {sortedIngredients.map((item, idx) => {
                          const fruitStr = getFruitCount(item.name, item.totalAmount);
                          return (
-                            <li key={idx} className="py-3 flex justify-between items-center">
-                                <span className={`text-gray-200 capitalize ${isGrocery(item.name) ? 'font-semibold text-white' : ''}`}>
-                                    {item.name}
-                                </span>
+                            <li 
+                                key={idx} 
+                                onClick={() => addToShoppingList(item)}
+                                className="py-3 flex justify-between items-center cursor-pointer group hover:bg-bar-900 px-2 rounded -mx-2 transition-colors"
+                            >
+                                <div className="flex items-center">
+                                    <span className="text-bar-accent opacity-0 group-hover:opacity-100 mr-2 transition-opacity">+</span>
+                                    <span className={`text-gray-200 capitalize ${isGrocery(item.name) ? 'font-semibold text-white' : ''}`}>
+                                        {item.name}
+                                    </span>
+                                </div>
                                 <div className="flex items-center justify-end text-right">
                                     {fruitStr && <span className="text-bar-accent mr-3 text-sm font-medium">{fruitStr}</span>}
                                     <span className="text-bar-gold font-bold font-mono whitespace-nowrap">
@@ -162,6 +200,49 @@ const PartyPlanner: React.FC = () => {
                      })}
                  </ul>
              )}
+        </div>
+
+        {/* Panel 3: Shopping List (Custom) */}
+        <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 flex flex-col h-fit">
+            <div className="mb-4 border-b border-bar-700 pb-2 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Shopping List</h2>
+                {state.customShoppingList.length > 0 && (
+                    <button onClick={() => updateShoppingList([])} className="text-xs text-red-400 hover:text-white">Clear</button>
+                )}
+            </div>
+            
+            {state.customShoppingList.length === 0 ? (
+                <p className="text-gray-500 italic">Your list is empty. Click ingredients to add them.</p>
+            ) : (
+                <ul className="space-y-2">
+                    {state.customShoppingList.map(item => {
+                        const fruitStr = getFruitCount(item.name, item.amount);
+                        return (
+                            <li key={item.id} className="flex items-center bg-bar-900 p-3 rounded-lg group">
+                                <button 
+                                    onClick={() => toggleShoppingItem(item.id)}
+                                    className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${item.checked ? 'bg-bar-accent border-bar-accent' : 'border-gray-500'}`}
+                                >
+                                    {item.checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                </button>
+                                <div className={`flex-1 ${item.checked ? 'opacity-50 line-through' : ''}`}>
+                                    <span className="text-white block font-medium capitalize">
+                                        {item.name}
+                                        {fruitStr && <span className="text-bar-accent text-xs ml-2 font-bold">{fruitStr}</span>}
+                                    </span>
+                                    <span className="text-xs text-bar-gold">{item.amount > 0 ? item.amount.toLocaleString(undefined, {maximumFractionDigits: 1}) : ''} {item.unit}</span>
+                                </div>
+                                <button 
+                                    onClick={() => removeShoppingItem(item.id)}
+                                    className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
         </div>
 
       </div>

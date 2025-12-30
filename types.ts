@@ -15,21 +15,31 @@ export interface Recipe {
   credits?: string;
   glassware: string;
   rating?: number;
+  isFavorite?: boolean; // New
+  userNotes?: string;   // New
   addedAt: number;
 }
 
 export interface UserSettings {
   defaultServings: number;
   preferedUnit: 'ml' | 'oz' | 'cl';
-  ingredientNotes: Record<string, string>; // e.g. "Lime": "40ml per fruit"
+  ingredientNotes: Record<string, string>;
   theme: 'default' | 'tropical';
-  fruitYields: Record<string, number>; // e.g. "Lime": 30
+  fruitYields: Record<string, number>;
 }
 
 export interface InventoryItem {
-  name: string; // e.g., "Coupe", "Highball"
+  name: string; 
   owned: boolean;
   volumeMl: number;
+}
+
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  amount: number;
+  unit: string;
+  checked: boolean;
 }
 
 export interface AppState {
@@ -37,6 +47,7 @@ export interface AppState {
   settings: UserSettings;
   inventory: InventoryItem[];
   partyList: { recipeId: string; count: number }[];
+  customShoppingList: ShoppingItem[]; // New
 }
 
 export type GlassType = 'Coupe' | 'Old Fashioned' | 'Highball' | 'Tiki Mug' | 'Collins' | 'Martini' | 'Snifter' | 'Hurricane';

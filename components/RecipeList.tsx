@@ -9,18 +9,26 @@ interface RecipeListProps {
 const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showFavorites, setShowFavorites] = useState(false);
 
   const filteredRecipes = useMemo(() => {
-    const lowerSearch = search.toLowerCase();
-    if (!lowerSearch) return recipes;
+    let result = recipes;
 
-    return recipes.filter(r => {
-      const inTitle = r.title.toLowerCase().includes(lowerSearch);
-      const inTags = r.tags.some(t => t.toLowerCase().includes(lowerSearch));
-      const inIngredients = r.ingredients.some(i => i.name.toLowerCase().includes(lowerSearch));
-      return inTitle || inTags || inIngredients;
-    });
-  }, [recipes, search]);
+    if (showFavorites) {
+        result = result.filter(r => r.isFavorite);
+    }
+
+    const lowerSearch = search.toLowerCase();
+    if (lowerSearch) {
+        result = result.filter(r => {
+            const inTitle = r.title.toLowerCase().includes(lowerSearch);
+            const inTags = r.tags.some(t => t.toLowerCase().includes(lowerSearch));
+            const inIngredients = r.ingredients.some(i => i.name.toLowerCase().includes(lowerSearch));
+            return inTitle || inTags || inIngredients;
+        });
+    }
+    return result;
+  }, [recipes, search, showFavorites]);
 
   return (
     <div className="pb-24 pt-6 md:pt-24 px-4 max-w-7xl mx-auto">
@@ -39,19 +47,32 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
               </svg>
           </div>
         </div>
-        <div className="flex bg-bar-800 rounded-xl p-1 border border-bar-700 h-16 w-full md:w-auto">
-            <button 
-                onClick={() => setViewMode('grid')}
-                className={`flex-1 md:w-16 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-bar-700 text-bar-accent' : 'text-gray-400 hover:text-white'}`}
+        
+        <div className="flex gap-2">
+            <button
+                onClick={() => setShowFavorites(!showFavorites)}
+                className={`w-16 md:w-auto px-4 flex items-center justify-center rounded-xl border border-bar-700 transition-colors ${showFavorites ? 'bg-bar-accent text-white border-bar-accent' : 'bg-bar-800 text-gray-400 hover:text-white'}`}
+                title="Show Favorites"
             >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                <svg className="w-6 h-6" fill={showFavorites ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
             </button>
-            <button 
-                onClick={() => setViewMode('list')}
-                className={`flex-1 md:w-16 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'list' ? 'bg-bar-700 text-bar-accent' : 'text-gray-400 hover:text-white'}`}
-            >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-            </button>
+
+            <div className="flex bg-bar-800 rounded-xl p-1 border border-bar-700 h-16 w-full md:w-auto">
+                <button 
+                    onClick={() => setViewMode('grid')}
+                    className={`flex-1 md:w-16 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-bar-700 text-bar-accent' : 'text-gray-400 hover:text-white'}`}
+                >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                </button>
+                <button 
+                    onClick={() => setViewMode('list')}
+                    className={`flex-1 md:w-16 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'list' ? 'bg-bar-700 text-bar-accent' : 'text-gray-400 hover:text-white'}`}
+                >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+            </div>
         </div>
       </div>
 
@@ -63,6 +84,9 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
                 <div className="bg-bar-800 rounded-xl overflow-hidden border border-bar-700 shadow-md hover:shadow-bar-accent/20 hover:border-bar-accent transition-all duration-300 h-full flex flex-col">
                   <div className="h-32 bg-gradient-to-br from-bar-700 to-bar-900 flex items-center justify-center relative">
                      <div className="text-4xl">🍹</div>
+                     <div className="absolute top-2 right-2">
+                        {recipe.isFavorite && <span className="text-bar-accent">❤️</span>}
+                     </div>
                      <div className="absolute bottom-2 right-2 flex gap-1">
                         {recipe.rating ? Array.from({length: recipe.rating}).map((_, i) => (
                             <span key={i} className="text-bar-gold text-xs">★</span>
@@ -87,7 +111,10 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
                 // LIST VIEW
                 <div className="bg-bar-800 rounded-lg p-4 border border-bar-700 hover:border-bar-accent flex items-center justify-between transition-colors">
                     <div className="flex items-center space-x-4">
-                         <div className="w-12 h-12 bg-bar-700 rounded-full flex items-center justify-center text-xl">🍹</div>
+                         <div className="w-12 h-12 bg-bar-700 rounded-full flex items-center justify-center text-xl relative">
+                             🍹
+                             {recipe.isFavorite && <div className="absolute -top-1 -right-1 text-xs">❤️</div>}
+                         </div>
                          <div>
                              <h3 className="text-lg font-bold text-white group-hover:text-bar-accent">{recipe.title}</h3>
                              <div className="flex items-center space-x-2 text-xs text-gray-400">
@@ -111,7 +138,7 @@ const RecipeList: React.FC<RecipeListProps> = ({ recipes }) => {
         ))}
         {filteredRecipes.length === 0 && (
             <div className="col-span-full text-center py-20 text-gray-500">
-                <p className="text-xl">No cocktails found matching "{search}"</p>
+                <p className="text-xl">No cocktails found matching "{search}" {showFavorites ? 'in favorites' : ''}</p>
                 <p className="mt-2">Try searching for an ingredient like "rum" or "lime"</p>
             </div>
         )}

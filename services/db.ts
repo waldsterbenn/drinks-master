@@ -1,4 +1,4 @@
-import { AppState, Recipe, UserSettings, InventoryItem, DEFAULT_GLASSWARE } from '../types';
+import { AppState, Recipe, UserSettings, InventoryItem, ShoppingItem, DEFAULT_GLASSWARE } from '../types';
 
 const DB_KEY = 'mixmaster_db_v1';
 
@@ -7,7 +7,7 @@ const DEFAULT_FRUIT_YIELDS: Record<string, number> = {
     'Lemon': 45,
     'Orange': 90,
     'Grapefruit': 150,
-    'Pineapple': 500, // Small pineapple or large slice yield? Often used for juice.
+    'Pineapple': 500,
     'Watermelon': 1000
 };
 
@@ -21,7 +21,8 @@ const DEFAULT_STATE: AppState = {
     fruitYields: DEFAULT_FRUIT_YIELDS
   },
   inventory: DEFAULT_GLASSWARE,
-  partyList: []
+  partyList: [],
+  customShoppingList: []
 };
 
 // Seed data if empty
@@ -45,7 +46,9 @@ const SEED_RECIPES: Recipe[] = [
         credits: "Originally from Don the Beachcomber, circa 1937",
         glassware: "Old Fashioned",
         addedAt: Date.now(),
-        rating: 5
+        rating: 5,
+        isFavorite: false,
+        userNotes: ""
     }
 ];
 
@@ -62,18 +65,19 @@ export const getDB = (): AppState => {
       parsed.settings.fruitYields = DEFAULT_FRUIT_YIELDS;
       parsed.settings.theme = 'default';
   }
+  if (!parsed.customShoppingList) {
+      parsed.customShoppingList = [];
+  }
   return parsed;
 };
 
 export const saveDB = (state: AppState) => {
   localStorage.setItem(DB_KEY, JSON.stringify(state));
-  // Dispatch event to notify listeners (like App.tsx) to refresh state
   window.dispatchEvent(new Event('db-change'));
 };
 
 export const addRecipes = (newRecipes: Recipe[]) => {
   const state = getDB();
-  // Avoid duplicates by title logic or just append
   state.recipes = [...state.recipes, ...newRecipes];
   saveDB(state);
   return state.recipes;
@@ -115,5 +119,11 @@ export const addToParty = (recipeId: string, count: number) => {
 export const clearParty = () => {
     const state = getDB();
     state.partyList = [];
+    saveDB(state);
+}
+
+export const updateShoppingList = (list: ShoppingItem[]) => {
+    const state = getDB();
+    state.customShoppingList = list;
     saveDB(state);
 }

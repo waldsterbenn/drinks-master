@@ -29,6 +29,20 @@ const RecipeView: React.FC = () => {
     updateRecipe(updated);
   };
 
+  const toggleFavorite = () => {
+    if (!recipe) return;
+    const updated = { ...recipe, isFavorite: !recipe.isFavorite };
+    setRecipe(updated);
+    updateRecipe(updated);
+  };
+
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if(!recipe) return;
+      const updated = { ...recipe, userNotes: e.target.value };
+      setRecipe(updated);
+      updateRecipe(updated); // In a real app we might debounce this
+  };
+
   const toggleParty = (delta: number) => {
       if(!recipe) return;
       const newCount = Math.max(0, partyCount + delta);
@@ -62,13 +76,11 @@ const RecipeView: React.FC = () => {
     } else if (servings === 0.75) {
         setServings(0.5);
     }
-    // Limit at 0.5
   };
 
   if (!recipe) return <div>Loading...</div>;
 
   const totalVolume = recipe.ingredients.reduce((acc, ing) => {
-      // rough volume calc, ignoring 'dash' etc for total bulk usually
       return acc + (ing.unit === 'ml' ? ing.amount : 0);
   }, 0) * servings;
 
@@ -82,7 +94,18 @@ const RecipeView: React.FC = () => {
             Back
           </button>
           
-          <h1 className="text-4xl font-extrabold text-white mb-2">{recipe.title}</h1>
+          <div className="flex justify-between items-start mb-2">
+            <h1 className="text-4xl font-extrabold text-white">{recipe.title}</h1>
+            <button 
+                onClick={toggleFavorite}
+                className={`p-2 rounded-full transition-colors ${recipe.isFavorite ? 'text-bar-accent' : 'text-gray-600 hover:text-gray-400'}`}
+                title="Toggle Favorite"
+            >
+                <svg className="w-8 h-8" fill={recipe.isFavorite ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+            </button>
+          </div>
           <p className="text-gray-400 italic mb-6">{recipe.credits}</p>
 
           <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 shadow-xl mb-6">
@@ -169,13 +192,23 @@ const RecipeView: React.FC = () => {
              <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700">
                 <h3 className="text-lg font-bold text-white mb-4">Party Planner</h3>
                 <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Add to shopping list</span>
+                    <span className="text-gray-300">Add to menu</span>
                     <div className="flex items-center space-x-3 bg-bar-900 rounded-lg p-1">
                         <button onClick={() => toggleParty(-1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white">-</button>
                         <span className="font-bold w-6 text-center">{partyCount}</span>
                         <button onClick={() => toggleParty(1)} className="w-8 h-8 flex items-center justify-center text-bar-accent font-bold">+</button>
                     </div>
                 </div>
+            </div>
+
+            <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700">
+                <h3 className="text-lg font-bold text-white mb-2">My Notes</h3>
+                <textarea 
+                    value={recipe.userNotes || ''}
+                    onChange={handleNoteChange}
+                    placeholder="Add personal tasting notes, modifications, or ideas here..."
+                    className="w-full bg-bar-900 border border-bar-700 rounded-lg p-3 text-white placeholder-gray-500 min-h-[100px] focus:ring-2 focus:ring-bar-accent focus:border-transparent outline-none"
+                />
             </div>
         </div>
       </div>

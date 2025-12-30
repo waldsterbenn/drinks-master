@@ -4,6 +4,8 @@ import { AppState, InventoryItem } from '../types';
 
 const Settings: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
+  const [newFruit, setNewFruit] = useState('');
+  const [newYield, setNewYield] = useState('');
 
   useEffect(() => {
     setState(getDB());
@@ -24,6 +26,13 @@ const Settings: React.FC = () => {
       setState({ ...state, settings: newSettings });
   };
 
+  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newUnit = e.target.value as 'ml' | 'oz' | 'cl';
+      const newSettings = { ...state.settings, preferedUnit: newUnit };
+      updateSettings(newSettings);
+      setState({ ...state, settings: newSettings });
+  };
+
   const handleYieldChange = (fruit: string, val: string) => {
       const num = parseFloat(val);
       if (isNaN(num)) return;
@@ -32,6 +41,27 @@ const Settings: React.FC = () => {
       updateSettings(newSettings);
       setState({ ...state, settings: newSettings });
   };
+
+  const handleAddFruit = () => {
+      if (!newFruit || !newYield) return;
+      const num = parseFloat(newYield);
+      if (isNaN(num)) return;
+
+      const newYields = { ...state.settings.fruitYields, [newFruit]: num };
+      const newSettings = { ...state.settings, fruitYields: newYields };
+      updateSettings(newSettings);
+      setState({ ...state, settings: newSettings });
+      setNewFruit('');
+      setNewYield('');
+  };
+
+  const handleRemoveFruit = (fruit: string) => {
+      const newYields = { ...state.settings.fruitYields };
+      delete newYields[fruit];
+      const newSettings = { ...state.settings, fruitYields: newYields };
+      updateSettings(newSettings);
+      setState({ ...state, settings: newSettings });
+  }
 
   return (
     <div className="pb-24 pt-6 md:pt-24 px-4 max-w-2xl mx-auto">
@@ -59,9 +89,14 @@ const Settings: React.FC = () => {
           <div className="bg-bar-800 rounded-xl p-6 border border-bar-700 space-y-4">
               <div className="flex justify-between items-center">
                   <span className="text-gray-300">Default Unit System</span>
-                  <select className="bg-bar-900 border border-bar-700 text-white rounded px-3 py-1">
-                      <option>Metric (ml)</option>
-                      <option disabled>Imperial (oz) - Coming soon</option>
+                  <select 
+                      className="bg-bar-900 border border-bar-700 text-white rounded px-3 py-1"
+                      value={state.settings.preferedUnit}
+                      onChange={handleUnitChange}
+                  >
+                      <option value="ml">Metric (ml)</option>
+                      <option value="cl">Metric (cl)</option>
+                      <option value="oz">Imperial (oz)</option>
                   </select>
               </div>
                <div className="flex justify-between items-center">
@@ -82,7 +117,7 @@ const Settings: React.FC = () => {
         <h2 className="text-xl font-bold text-bar-accent mb-4 border-b border-bar-700 pb-2">Fruit Yields (ml per item)</h2>
         <div className="bg-bar-800 rounded-xl p-6 border border-bar-700">
              <p className="text-sm text-gray-400 mb-4">Estimated juice yield per whole fruit. Used for party planning calculations.</p>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 gap-4 mb-6">
                  {Object.entries(state.settings.fruitYields || {}).map(([fruit, yieldAmount]) => (
                      <div key={fruit} className="flex justify-between items-center bg-bar-900 p-3 rounded-lg border border-bar-700">
                          <span className="text-white font-medium">{fruit}</span>
@@ -93,10 +128,37 @@ const Settings: React.FC = () => {
                                 onChange={(e) => handleYieldChange(fruit, e.target.value)}
                                 className="w-16 bg-bar-800 text-right text-white rounded px-2 py-1 border border-bar-700 focus:border-bar-accent outline-none"
                              />
-                             <span className="text-xs text-gray-500">ml</span>
+                             <span className="text-xs text-gray-500 w-6">ml</span>
+                             <button onClick={() => handleRemoveFruit(fruit)} className="text-gray-500 hover:text-red-500 ml-2">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                             </button>
                          </div>
                      </div>
                  ))}
+             </div>
+             
+             <div className="flex gap-2 items-center bg-bar-900 p-3 rounded-lg border border-bar-700 border-dashed">
+                 <input 
+                    type="text" 
+                    placeholder="New fruit name" 
+                    value={newFruit}
+                    onChange={(e) => setNewFruit(e.target.value)}
+                    className="bg-transparent text-white placeholder-gray-500 flex-1 outline-none min-w-0"
+                 />
+                 <input 
+                    type="number" 
+                    placeholder="Yield"
+                    value={newYield}
+                    onChange={(e) => setNewYield(e.target.value)}
+                    className="w-16 bg-bar-800 text-right text-white rounded px-2 py-1 border border-bar-700 focus:border-bar-accent outline-none"
+                 />
+                 <span className="text-xs text-gray-500">ml</span>
+                 <button 
+                    onClick={handleAddFruit}
+                    className="bg-bar-700 hover:bg-bar-accent text-white px-3 py-1 rounded transition-colors text-sm font-semibold ml-2"
+                 >
+                     Add
+                 </button>
              </div>
         </div>
       </section>
