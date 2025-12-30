@@ -117,12 +117,26 @@ const RecipeView: React.FC = () => {
           <p className="text-gray-400 italic mb-6">{recipe.credits}</p>
 
           <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 shadow-xl mb-6">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-bar-700">
-                <span className="text-gray-400 uppercase text-sm font-semibold tracking-wider">Servings</span>
-                <div className="flex items-center space-x-4">
-                    <button onClick={decrementServings} className="w-10 h-10 rounded-full bg-bar-700 hover:bg-bar-600 flex items-center justify-center text-xl font-bold text-bar-accent">-</button>
-                    <span className="text-2xl font-bold w-12 text-center">{servings}</span>
-                    <button onClick={incrementServings} className="w-10 h-10 rounded-full bg-bar-700 hover:bg-bar-600 flex items-center justify-center text-xl font-bold text-bar-accent">+</button>
+            <div className="mb-6 pb-4 border-b border-bar-700 space-y-4">
+                <div className="flex justify-between items-center">
+                    <span className="text-gray-400 uppercase text-sm font-semibold tracking-wider">Servings</span>
+                    <div className="flex items-center space-x-3">
+                        <button onClick={decrementServings} className="w-8 h-8 rounded-full bg-bar-700 hover:bg-bar-600 flex items-center justify-center text-lg font-bold text-bar-accent transition-colors">-</button>
+                        <span className="text-xl font-bold w-10 text-center">{servings}</span>
+                        <button onClick={incrementServings} className="w-8 h-8 rounded-full bg-bar-700 hover:bg-bar-600 flex items-center justify-center text-lg font-bold text-bar-accent transition-colors">+</button>
+                    </div>
+                </div>
+                
+                <div className="flex justify-between items-center pt-2 border-t border-bar-700/50">
+                    <span className="text-gray-400 uppercase text-sm font-semibold tracking-wider flex items-center gap-2">
+                        Party Menu
+                        {partyCount > 0 && <span className="bg-bar-accent text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">In List</span>}
+                    </span>
+                    <div className="flex items-center space-x-3 bg-bar-900 rounded-lg p-0.5 border border-bar-700">
+                        <button onClick={() => toggleParty(-1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">-</button>
+                        <span className={`font-bold w-10 text-center ${partyCount > 0 ? 'text-white' : 'text-gray-500'}`}>{partyCount}</span>
+                        <button onClick={() => toggleParty(1)} className="w-8 h-8 flex items-center justify-center text-bar-accent font-bold hover:text-red-400 transition-colors">+</button>
+                    </div>
                 </div>
             </div>
 
@@ -214,18 +228,6 @@ const RecipeView: React.FC = () => {
                             ★
                         </button>
                     ))}
-                </div>
-            </div>
-
-             <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700">
-                <h3 className="text-lg font-bold text-white mb-4">Party Planner</h3>
-                <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Add to menu</span>
-                    <div className="flex items-center space-x-3 bg-bar-900 rounded-lg p-1">
-                        <button onClick={() => toggleParty(-1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white">-</button>
-                        <span className="font-bold w-6 text-center">{partyCount}</span>
-                        <button onClick={() => toggleParty(1)} className="w-8 h-8 flex items-center justify-center text-bar-accent font-bold">+</button>
-                    </div>
                 </div>
             </div>
 

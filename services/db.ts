@@ -1,27 +1,24 @@
+
 import { AppState, Recipe, UserSettings, InventoryItem, ShoppingItem, BarItem, DEFAULT_GLASSWARE } from '../types';
 
 const DB_KEY = 'mixmaster_db_v1';
 
-const DEFAULT_FRUIT_YIELDS: Record<string, number> = {
-    'Lime': 30,
-    'Lemon': 45,
-    'Orange': 90,
-    'Grapefruit': 150,
-    'Pineapple': 500,
-    'Watermelon': 1000
-};
-
 const DEFAULT_BAR_INVENTORY: BarItem[] = [
-    { name: 'London Dry Gin', volumePrUnitMl: 700, categories: ['Spirit', 'Gin', 'Clear'], inStock: true },
-    { name: 'Light Rum', volumePrUnitMl: 700, categories: ['Spirit', 'Rum'], inStock: true },
-    { name: 'Dark Rum', volumePrUnitMl: 700, categories: ['Spirit', 'Rum', 'Aged'], inStock: true },
-    { name: 'Lime', volumePrUnitMl: 1, categories: ['Fruit', 'Citrus', 'Juice'], inStock: true },
-    { name: 'Lemon', volumePrUnitMl: 1, categories: ['Fruit', 'Citrus', 'Juice'], inStock: true },
-    { name: 'Simple Syrup', volumePrUnitMl: 500, categories: ['Syrup', 'Sweetener'], inStock: true },
-    { name: 'Angostura Bitters', volumePrUnitMl: 200, categories: ['Bitters'], inStock: true },
-    { name: 'Orange Juice', volumePrUnitMl: 1000, categories: ['Juice', 'Mixer', 'Fruit'], inStock: false },
-    { name: 'Campari', volumePrUnitMl: 700, categories: ['Liqueur', 'Amaro'], inStock: false },
-    { name: 'Sweet Vermouth', volumePrUnitMl: 750, categories: ['Wine', 'Fortified'], inStock: false },
+    { name: 'London Dry Gin', volumePrUnitMl: 700, categories: ['Spirit', 'Gin', 'Clear'], inStock: true, stockCount: 1 },
+    { name: 'Light Rum', volumePrUnitMl: 700, categories: ['Spirit', 'Rum'], inStock: true, stockCount: 1 },
+    { name: 'Dark Rum', volumePrUnitMl: 700, categories: ['Spirit', 'Rum', 'Aged'], inStock: true, stockCount: 1 },
+    { name: 'Simple Syrup', volumePrUnitMl: 500, categories: ['Syrup', 'Sweetener'], inStock: true, stockCount: 1 },
+    { name: 'Angostura Bitters', volumePrUnitMl: 200, categories: ['Bitters'], inStock: true, stockCount: 1 },
+    { name: 'Orange Juice', volumePrUnitMl: 1000, categories: ['Juice', 'Mixer', 'Fruit'], inStock: false, stockCount: 0 },
+    { name: 'Campari', volumePrUnitMl: 700, categories: ['Liqueur', 'Amaro'], inStock: false, stockCount: 0 },
+    { name: 'Sweet Vermouth', volumePrUnitMl: 750, categories: ['Wine', 'Fortified'], inStock: false, stockCount: 0 },
+    // Fruits added as inventory items with average juice yields
+    { name: 'Lime', volumePrUnitMl: 30, categories: ['Fruit', 'Citrus', 'Juice'], inStock: true, stockCount: 5 },
+    { name: 'Lemon', volumePrUnitMl: 45, categories: ['Fruit', 'Citrus', 'Juice'], inStock: true, stockCount: 3 },
+    { name: 'Orange', volumePrUnitMl: 90, categories: ['Fruit', 'Citrus', 'Juice'], inStock: false, stockCount: 0 },
+    { name: 'Grapefruit', volumePrUnitMl: 150, categories: ['Fruit', 'Citrus', 'Juice'], inStock: false, stockCount: 0 },
+    { name: 'Pineapple', volumePrUnitMl: 500, categories: ['Fruit', 'Juice'], inStock: false, stockCount: 0 },
+    { name: 'Watermelon', volumePrUnitMl: 1000, categories: ['Fruit', 'Juice'], inStock: false, stockCount: 0 }
 ];
 
 const DEFAULT_STATE: AppState = {
@@ -30,8 +27,7 @@ const DEFAULT_STATE: AppState = {
     defaultServings: 1,
     preferedUnit: 'ml',
     ingredientNotes: {},
-    theme: 'default',
-    fruitYields: DEFAULT_FRUIT_YIELDS
+    theme: 'default'
   },
   inventory: DEFAULT_GLASSWARE,
   barInventory: DEFAULT_BAR_INVENTORY,
@@ -119,8 +115,7 @@ export const getDB = (): AppState => {
   const parsed = JSON.parse(data);
   
   // Migrations for existing users
-  if (!parsed.settings.fruitYields) {
-      parsed.settings.fruitYields = DEFAULT_FRUIT_YIELDS;
+  if (!parsed.settings.theme) {
       parsed.settings.theme = 'default';
   }
   if (!parsed.customShoppingList) {
@@ -132,6 +127,24 @@ export const getDB = (): AppState => {
       parsed.barInventory = DEFAULT_BAR_INVENTORY;
       parsed.tempBarInventory = [];
       parsed.isTempInventoryActive = false;
+  } else {
+      // Migration: Add stockCount if missing
+      parsed.barInventory = parsed.barInventory.map((i: any) => ({
+          ...i,
+          stockCount: typeof i.stockCount === 'number' ? i.stockCount : (i.inStock ? 1 : 0)
+      }));
+      
+      if (parsed.tempBarInventory) {
+          parsed.tempBarInventory = parsed.tempBarInventory.map((i: any) => ({
+              ...i,
+              stockCount: typeof i.stockCount === 'number' ? i.stockCount : (i.inStock ? 1 : 0)
+          }));
+      }
+  }
+
+  // Cleanup old fruitYields if present in migrated data
+  if (parsed.settings.fruitYields) {
+      delete parsed.settings.fruitYields;
   }
   
   return parsed;

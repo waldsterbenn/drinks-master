@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getDB, updateBarInventory, setTempInventoryActive } from '../services/db';
 import { AppState, BarItem } from '../types';
@@ -15,6 +16,7 @@ const InventoryManager: React.FC = () => {
   const [formName, setFormName] = useState('');
   const [formVol, setFormVol] = useState('700');
   const [formCats, setFormCats] = useState('');
+  const [formStock, setFormStock] = useState('1');
 
   useEffect(() => {
     // Subscribe to DB changes
@@ -41,10 +43,18 @@ const InventoryManager: React.FC = () => {
 
   // --- Actions ---
 
-  const toggleStock = (name: string) => {
-      const updated = activeInventory.map(item => 
-          item.name === name ? { ...item, inStock: !item.inStock } : item
-      );
+  const updateStock = (name: string, delta: number) => {
+      const updated = activeInventory.map(item => {
+          if (item.name === name) {
+              const newCount = Math.max(0, (item.stockCount || 0) + delta);
+              return { 
+                  ...item, 
+                  stockCount: newCount, 
+                  inStock: newCount > 0 
+              };
+          }
+          return item;
+      });
       updateBarInventory(updated, isTemp);
   };
 
@@ -66,11 +76,13 @@ const InventoryManager: React.FC = () => {
           setFormName(item.name);
           setFormVol(item.volumePrUnitMl.toString());
           setFormCats(item.categories.join(', '));
+          setFormStock(item.stockCount.toString());
       } else {
           setEditingTarget(null); // New mode
           setFormName('');
           setFormVol('700');
           setFormCats('');
+          setFormStock('1');
       }
       setIsModalOpen(true);
   };
@@ -79,6 +91,7 @@ const InventoryManager: React.FC = () => {
       const trimmedName = formName.trim();
       const vol = parseInt(formVol) || 0;
       const cats = formCats.split(',').map(c => c.trim()).filter(c => c);
+      const stock = parseInt(formStock) || 0;
 
       if (!trimmedName) {
           alert("Item name is required");
@@ -102,7 +115,8 @@ const InventoryManager: React.FC = () => {
                       name: trimmedName,
                       volumePrUnitMl: vol,
                       categories: cats,
-                      inStock: item.inStock // Keep existing stock status
+                      inStock: stock > 0,
+                      stockCount: stock
                   };
               }
               return item;
@@ -115,7 +129,8 @@ const InventoryManager: React.FC = () => {
                   name: trimmedName,
                   volumePrUnitMl: vol,
                   categories: cats,
-                  inStock: true
+                  inStock: stock > 0,
+                  stockCount: stock
               }
           ];
       }
@@ -195,7 +210,7 @@ const InventoryManager: React.FC = () => {
               <table className="w-full text-left">
                   <thead className="bg-bar-900 text-gray-400 text-xs uppercase tracking-wider">
                       <tr>
-                          <th className="p-4 w-16 text-center">Stock</th>
+                          <th className="p-4 w-32 text-center">Quantity</th>
                           <th className="p-4">Item Name</th>
                           <th className="p-4 hidden sm:table-cell">Categories</th>
                           <th className="p-4 hidden sm:table-cell text-right">Vol (ml)</th>
@@ -206,20 +221,26 @@ const InventoryManager: React.FC = () => {
                       {filteredItems.map(item => (
                           <tr key={item.name} className="hover:bg-bar-900/50 transition-colors group">
                               <td className="p-4 text-center">
-                                  <button 
-                                    onClick={() => toggleStock(item.name)}
-                                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${item.inStock ? 'bg-green-600 border-green-500 text-white shadow-lg shadow-green-900/50' : 'border-gray-600 text-gray-600 hover:border-gray-400'}`}
-                                    title={item.inStock ? "In Stock" : "Out of Stock"}
-                                  >
-                                      {item.inStock ? (
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                      ) : (
-                                        <div className="w-2 h-2 rounded-full bg-gray-600"></div>
-                                      )}
-                                  </button>
+                                  <div className="flex items-center justify-center space-x-2 bg-bar-900/50 rounded-lg p-1 w-fit mx-auto border border-bar-700">
+                                      <button 
+                                        onClick={() => updateStock(item.name, -1)}
+                                        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white hover:bg-bar-700 rounded transition-colors"
+                                      >
+                                          -
+                                      </button>
+                                      <span className={`font-mono font-bold w-6 text-center ${item.stockCount > 0 ? 'text-bar-accent' : 'text-gray-600'}`}>
+                                          {item.stockCount}
+                                      </span>
+                                      <button 
+                                        onClick={() => updateStock(item.name, 1)}
+                                        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white hover:bg-bar-700 rounded transition-colors"
+                                      >
+                                          +
+                                      </button>
+                                  </div>
                               </td>
                               <td className="p-4">
-                                  <div className={`font-medium text-lg ${item.inStock ? 'text-white' : 'text-gray-500'}`}>{item.name}</div>
+                                  <div className={`font-medium text-lg ${item.stockCount > 0 ? 'text-white' : 'text-gray-500 line-through decoration-gray-600'}`}>{item.name}</div>
                                   <div className="sm:hidden text-xs text-gray-500 mt-1">{item.categories.join(', ')}</div>
                               </td>
                               <td className="p-4 hidden sm:table-cell">
@@ -273,6 +294,27 @@ const InventoryManager: React.FC = () => {
                             autoFocus
                           />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-bar-accent text-xs font-bold uppercase tracking-wider mb-2">Current Stock</label>
+                            <input 
+                                type="number" 
+                                className="w-full bg-bar-900 border border-bar-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-bar-accent outline-none transition-all placeholder-gray-600"
+                                value={formStock}
+                                onChange={e => setFormStock(e.target.value)}
+                                min="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-bar-accent text-xs font-bold uppercase tracking-wider mb-2">Vol / Unit (ml)</label>
+                            <input 
+                                type="number" 
+                                className="w-full bg-bar-900 border border-bar-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-bar-accent outline-none transition-all placeholder-gray-600"
+                                value={formVol}
+                                onChange={e => setFormVol(e.target.value)}
+                            />
+                        </div>
+                      </div>
                       <div>
                           <label className="block text-bar-accent text-xs font-bold uppercase tracking-wider mb-2">Categories <span className="text-gray-500 font-normal lowercase">(comma separated)</span></label>
                           <input 
@@ -281,15 +323,6 @@ const InventoryManager: React.FC = () => {
                             value={formCats}
                             onChange={e => setFormCats(e.target.value)}
                             placeholder="e.g. Spirit, Gin, Clear"
-                          />
-                      </div>
-                      <div>
-                          <label className="block text-bar-accent text-xs font-bold uppercase tracking-wider mb-2">Standard Volume (ml)</label>
-                          <input 
-                            type="number" 
-                            className="w-full bg-bar-900 border border-bar-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-bar-accent outline-none transition-all placeholder-gray-600"
-                            value={formVol}
-                            onChange={e => setFormVol(e.target.value)}
                           />
                       </div>
                   </div>

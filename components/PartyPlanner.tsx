@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getDB, clearParty, addToParty, updateShoppingList } from '../services/db';
-import { AppState, ShoppingItem } from '../types';
+import { AppState, ShoppingItem, BarItem } from '../types';
 
 interface AggregatedItem {
     name: string;
@@ -28,6 +28,8 @@ const PartyPlanner: React.FC = () => {
   }, []);
 
   if (!state) return null;
+
+  const activeInventory = state.isTempInventoryActive ? state.tempBarInventory : state.barInventory;
 
   // --- Logic for Ingredients (Calculated) ---
 
@@ -60,20 +62,6 @@ const PartyPlanner: React.FC = () => {
       return GROCERY_KEYWORDS.some(k => lower.includes(k));
   };
 
-  const getFruitCount = (name: string, totalMl: number): string | null => {
-      const yields = state.settings.fruitYields || {};
-      const lowerName = name.toLowerCase();
-      const match = Object.keys(yields).find(key => lowerName.includes(key.toLowerCase()));
-      if (match) {
-          const yieldPerFruit = yields[match];
-          if (yieldPerFruit > 0) {
-              const count = Math.ceil(totalMl / yieldPerFruit);
-              return `(${count} ${match}s)`;
-          }
-      }
-      return null;
-  };
-
   const sortedIngredients = Object.values(calculatedIngredients).sort((a, b) => {
       const aIsGrocery = isGrocery(a.name);
       const bIsGrocery = isGrocery(b.name);
@@ -82,22 +70,72 @@ const PartyPlanner: React.FC = () => {
       return a.name.localeCompare(b.name);
   });
 
+  const getInventoryMatch = (ingName: string) => {
+      if (!activeInventory) return null;
+      const lowerIng = ingName.toLowerCase();
+      
+      // 1. Exact Name match
+      let match = activeInventory.find(i => i.name.toLowerCase() === lowerIng);
+      
+      // 2. Ingredient contains Inventory Name (e.g. "Lime Juice" contains "Lime")
+      if (!match) {
+          match = activeInventory
+            .filter(i => lowerIng.includes(i.name.toLowerCase()))
+            .sort((a, b) => b.name.length - a.name.length)[0];
+      }
+
+      // 3. Inventory Name contains Ingredient (e.g. "London Dry Gin" contains "Gin")
+      if (!match) {
+          match = activeInventory
+            .filter(i => i.name.toLowerCase().includes(lowerIng))
+            .sort((a, b) => a.name.length - b.name.length)[0];
+      }
+      return match || null;
+  };
+
+  const getInventoryRequirement = (ingName: string, amount: number) => {
+      const match = getInventoryMatch(ingName);
+
+      if (match && match.volumePrUnitMl > 0) {
+          const units = Math.ceil(amount / match.volumePrUnitMl);
+          return { count: units, name: match.name };
+      }
+      return null;
+  };
+
   // --- Logic for Shopping List (Custom) ---
 
   const addToShoppingList = (ing: AggregatedItem) => {
       const newList = [...state.customShoppingList];
+      
+      const match = getInventoryMatch(ing.name);
+      
+      let targetName = ing.name;
+      let targetAmount = ing.totalAmount;
+      let targetUnit = ing.unit;
+
+      if (match && match.volumePrUnitMl > 0) {
+          // Smart Add: Add only what we need to buy
+          const unitsNeeded = Math.ceil(ing.totalAmount / match.volumePrUnitMl);
+          const buyCount = Math.max(0, unitsNeeded - match.stockCount);
+          
+          targetName = match.name;
+          targetAmount = buyCount; // Default to buying missing amount. If 0, adds 0 (user can adjust).
+          targetUnit = 'pcs'; 
+      }
+
       // Check if similar item exists to merge
-      const existingIdx = newList.findIndex(i => i.name.toLowerCase() === ing.name.toLowerCase() && i.unit === ing.unit);
+      const existingIdx = newList.findIndex(i => i.name.toLowerCase() === targetName.toLowerCase() && i.unit === targetUnit);
       
       if (existingIdx >= 0) {
-          newList[existingIdx].amount += ing.totalAmount;
+          newList[existingIdx].amount += targetAmount;
           newList[existingIdx].checked = false; // Uncheck on update
       } else {
           newList.push({
               id: Math.random().toString(36).substr(2, 9),
-              name: ing.name,
-              amount: ing.totalAmount,
-              unit: ing.unit,
+              name: targetName,
+              amount: targetAmount,
+              unit: targetUnit,
               checked: false
           });
       }
@@ -117,22 +155,10 @@ const PartyPlanner: React.FC = () => {
               const isVolume = ['ml', 'cl', 'oz', 'l'].includes(u);
 
               if (isVolume) {
-                   const yields = state.settings.fruitYields || {};
-                   const lowerName = i.name.toLowerCase();
-                   const fruitMatch = Object.keys(yields).find(key => lowerName.includes(key.toLowerCase()));
-                   
-                   if (fruitMatch) {
-                       const yieldMl = yields[fruitMatch];
-                       if (u === 'ml') step = yieldMl;
-                       else if (u === 'cl') step = yieldMl / 10;
-                       else if (u === 'oz') step = yieldMl / 29.5735;
-                       else if (u === 'l') step = yieldMl / 1000;
-                   } else {
-                       if (u === 'ml') step = 10;
-                       else if (u === 'cl') step = 1;
-                       else if (u === 'oz') step = 0.5;
-                       else if (u === 'l') step = 0.05;
-                   }
+                   if (u === 'ml') step = 10;
+                   else if (u === 'cl') step = 1;
+                   else if (u === 'oz') step = 0.5;
+                   else if (u === 'l') step = 0.05;
               } else {
                   step = 1;
               }
@@ -203,7 +229,7 @@ const PartyPlanner: React.FC = () => {
         <div className="bg-bar-800 rounded-2xl p-6 border border-bar-700 flex flex-col h-fit">
              <div className="mb-4 border-b border-bar-700 pb-2">
                  <h2 className="text-xl font-bold text-white">Ingredients</h2>
-                 <p className="text-xs text-gray-400 mt-1">Click an item to add to your shopping list</p>
+                 <p className="text-xs text-gray-400 mt-1">Click to add missing amounts to shopping list.</p>
              </div>
              
              {sortedIngredients.length === 0 ? (
@@ -211,24 +237,84 @@ const PartyPlanner: React.FC = () => {
              ) : (
                  <ul className="divide-y divide-bar-700">
                      {sortedIngredients.map((item, idx) => {
-                         const fruitStr = getFruitCount(item.name, item.totalAmount);
+                         const match = getInventoryMatch(item.name);
+                         
+                         let rightSideContent;
+                         const centerContent = (
+                            <div className="flex flex-col items-center justify-center">
+                                <span className="text-bar-gold font-bold font-mono text-xl">
+                                    {item.totalAmount.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                                    <span className="text-sm text-gray-500 ml-1 font-normal">{item.unit}</span>
+                                </span>
+                                <span className="text-[10px] text-gray-600 uppercase tracking-wider">Required</span>
+                            </div>
+                         );
+
+                         if (match && match.volumePrUnitMl > 0) {
+                              // Inventory Item Logic
+                              const unitsNeeded = Math.ceil(item.totalAmount / match.volumePrUnitMl);
+                              const stock = match.stockCount;
+                              const buy = Math.max(0, unitsNeeded - stock);
+                              
+                              rightSideContent = (
+                                  <div className="flex items-center gap-2 sm:gap-4">
+                                      <div className="flex flex-col items-center">
+                                          <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Stock</span>
+                                          <span className={`font-mono font-bold text-xl ${stock >= unitsNeeded ? 'text-green-400' : 'text-gray-600'}`}>
+                                              {stock}
+                                          </span>
+                                      </div>
+                                      <div className="w-px h-8 bg-bar-700"></div>
+                                      <div className="flex flex-col items-center">
+                                          <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Buy</span>
+                                          <span className={`font-mono font-bold text-xl ${buy > 0 ? 'text-red-500' : 'text-gray-600'}`}>
+                                              {buy}
+                                          </span>
+                                      </div>
+                                  </div>
+                              );
+                         } else {
+                             // Standard Ingredient Logic (No inventory match)
+                             rightSideContent = (
+                                <div className="flex items-center gap-2 sm:gap-4">
+                                      <div className="flex flex-col items-center opacity-20">
+                                          <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Stock</span>
+                                          <span className="font-mono font-bold text-xl text-gray-600">-</span>
+                                      </div>
+                                      <div className="w-px h-8 bg-bar-700"></div>
+                                      <div className="flex flex-col items-center">
+                                          <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Buy</span>
+                                          <span className="font-mono font-bold text-xl text-red-500">
+                                              {item.totalAmount.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                                              <span className="text-xs ml-0.5">{item.unit}</span>
+                                          </span>
+                                      </div>
+                                </div>
+                             );
+                         }
+                         
                          return (
                             <li 
                                 key={idx} 
                                 onClick={() => addToShoppingList(item)}
-                                className="py-3 flex justify-between items-center cursor-pointer group hover:bg-bar-900 px-2 rounded -mx-2 transition-colors"
+                                className="py-4 flex items-center justify-between cursor-pointer group hover:bg-bar-900 px-2 sm:px-4 rounded-lg -mx-2 transition-colors border-b border-bar-700/50 last:border-0"
                             >
-                                <div className="flex items-center">
-                                    <span className="text-bar-accent opacity-0 group-hover:opacity-100 mr-2 transition-opacity">+</span>
-                                    <span className={`text-gray-200 capitalize ${isGrocery(item.name) ? 'font-semibold text-white' : ''}`}>
-                                        {item.name}
-                                    </span>
+                                <div className="flex items-center w-1/3 pr-2">
+                                    <span className="text-bar-accent opacity-0 group-hover:opacity-100 mr-2 transition-opacity text-xl font-bold hidden sm:inline">+</span>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className={`text-base sm:text-lg text-gray-200 capitalize truncate ${isGrocery(item.name) ? 'font-semibold text-white' : ''}`} title={item.name}>
+                                            {item.name}
+                                        </span>
+                                        {match && <span className="text-[10px] text-gray-500 truncate">{match.name}</span>}
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-end text-right">
-                                    {fruitStr && <span className="text-bar-accent mr-3 text-sm font-medium">{fruitStr}</span>}
-                                    <span className="text-bar-gold font-bold font-mono whitespace-nowrap">
-                                        {item.totalAmount > 0 ? item.totalAmount.toLocaleString(undefined, {maximumFractionDigits: 1}) : ''} {item.unit}
-                                    </span>
+
+                                <div className="flex-1 flex justify-center px-2">
+                                    {centerContent}
+                                </div>
+
+                                <div className="w-1/3 flex justify-end">
+                                    {rightSideContent}
                                 </div>
                             </li>
                          );
@@ -251,7 +337,10 @@ const PartyPlanner: React.FC = () => {
             ) : (
                 <ul className="space-y-2">
                     {state.customShoppingList.map(item => {
-                        const fruitStr = getFruitCount(item.name, item.amount);
+                        // Check if this item maps to an inventory item
+                        const invMatch = activeInventory ? activeInventory.find(i => i.name === item.name) : null;
+                        const requirement = !invMatch ? getInventoryRequirement(item.name, item.amount) : null;
+
                         return (
                             <li key={item.id} className="flex flex-col sm:flex-row sm:items-center bg-bar-900 p-3 rounded-lg group gap-3">
                                 <div className="flex items-center flex-1">
@@ -264,8 +353,17 @@ const PartyPlanner: React.FC = () => {
                                     <div className={`flex-1 ${item.checked ? 'opacity-50 line-through' : ''}`}>
                                         <span className="text-white block font-medium capitalize leading-tight">
                                             {item.name}
-                                            {fruitStr && <span className="text-bar-accent text-xs ml-2 font-bold whitespace-nowrap">{fruitStr}</span>}
                                         </span>
+                                        {invMatch && (
+                                            <span className="text-xs text-bar-accent font-medium block mt-0.5">
+                                                Yields approx. {(item.amount * invMatch.volumePrUnitMl).toLocaleString()} ml
+                                            </span>
+                                        )}
+                                        {requirement && (
+                                            <span className="text-xs text-bar-accent font-medium block mt-0.5">
+                                                Buy: {requirement.count} {requirement.name}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 
@@ -278,7 +376,9 @@ const PartyPlanner: React.FC = () => {
                                             -
                                         </button>
                                         <span className="text-xs text-bar-gold font-mono w-20 text-center px-1">
-                                            {item.amount > 0 ? item.amount.toLocaleString(undefined, {maximumFractionDigits: 1}) : '0'} {item.unit}
+                                            {item.amount > 0 ? item.amount.toLocaleString(undefined, {maximumFractionDigits: 1}) : '0'} 
+                                            {/* Hide unit if it's an inventory item match to reduce clutter, or if unit is 'pcs' */}
+                                            {!invMatch && ` ${item.unit}`}
                                         </span>
                                         <button 
                                             onClick={() => updateItemAmount(item.id, 1)}

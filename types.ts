@@ -1,3 +1,4 @@
+
 export interface Ingredient {
   name: string;
   amount: number;
@@ -26,7 +27,6 @@ export interface UserSettings {
   preferedUnit: 'ml' | 'oz' | 'cl';
   ingredientNotes: Record<string, string>;
   theme: 'default' | 'tropical';
-  fruitYields: Record<string, number>;
 }
 
 export interface InventoryItem {
@@ -41,6 +41,7 @@ export interface BarItem {
   volumePrUnitMl: number;
   categories: string[];
   inStock: boolean;
+  stockCount: number;
 }
 
 export interface ShoppingItem {
