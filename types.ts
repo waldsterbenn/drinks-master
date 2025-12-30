@@ -16,6 +16,7 @@ export interface Recipe {
   glassware: string;
   rating?: number;
   isFavorite?: boolean; // New
+  tried?: boolean;      // New
   userNotes?: string;   // New
   addedAt: number;
 }
